@@ -1,6 +1,7 @@
 export type Signal = {
   label: string;
   description?: string;
+  evidence?: string;
 };
 
 export type GTMSearchCriteria = {
@@ -14,7 +15,12 @@ export type GTMSearchCriteria = {
   limit?: number;
 };
 
-export type IntelligenceSource = "mock" | "crustdata";
+export type IntelligenceSource = "mock" | "crustdata" | "agent";
+
+export type ResearchTraceStep = {
+  label: string;
+  detail?: string;
+};
 
 export type CompanyResult = {
   id: string;
@@ -29,6 +35,7 @@ export type CompanyResult = {
   fitScore: number;
   signals: Signal[];
   whyNow: string;
+  likelyBuyerName?: string;
   likelyBuyerTitle: string;
   outreachAngle: string;
 };
@@ -41,6 +48,10 @@ export type SearchRecord = {
   criteria: GTMSearchCriteria;
   source: IntelligenceSource;
   notice?: string;
+  interpretedQuery?: string;
+  researchSummary?: string;
+  researchPriorities?: string[];
+  researchTrace?: ResearchTraceStep[];
 };
 
 // PublicCompanyResult intentionally cannot carry private scoring, buyer, or outreach fields.

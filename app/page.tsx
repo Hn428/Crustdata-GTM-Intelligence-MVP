@@ -102,7 +102,7 @@ export default function Home() {
             <span className="grid h-11 w-11 place-items-center rounded-xl bg-[var(--ink)] text-white"><Database size={19} /></span>
             <div>
               <p className="font-extrabold tracking-[-0.02em]">Built for fresh market signals</p>
-              <p className="mt-1 text-sm text-[#6b7e77]">Phase 1 uses realistic mock data. Live data sources come next.</p>
+              <p className="mt-1 text-sm text-[#6b7e77]">OpenAI plans the research while Crustdata supplies current, factual market signals.</p>
             </div>
           </div>
           <span className="rounded-full border border-[#d8e2db] bg-[#f5f8f5] px-4 py-2 text-xs font-bold text-[#567068]">No emails exposed · Public-safe by design</span>
