@@ -11,7 +11,6 @@
 # local files
 .DS_Store
 *.pem
-.env*
 !.env.example
 
 # logs
@@ -22,3 +21,4 @@ pnpm-debug.log*
 
 # typescript
 *.tsbuildinfo
+config.bat

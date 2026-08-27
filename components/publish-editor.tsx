@@ -12,6 +12,12 @@ type PublishEditorProps = {
   notice?: string;
 };
 
+const sourceLabels: Record<IntelligenceSource, string> = {
+  agent: "OpenAI + Crustdata MCP source",
+  crustdata: "direct Crustdata source",
+  mock: "mock source",
+};
+
 function slugify(value: string) {
   return value
     .toLowerCase()
@@ -27,10 +33,37 @@ export function PublishEditor({ report, source, notice }: PublishEditorProps) {
   const [slug, setSlug] = useState(report.slug);
   const [introduction, setIntroduction] = useState(report.intro);
   const [isPublishing, setIsPublishing] = useState(false);
+  const [publishError, setPublishError] = useState<string>();
 
-  function publish() {
+  async function publish() {
+    const publishedSlug = slug || report.slug;
+
     setIsPublishing(true);
-    window.setTimeout(() => router.push(`/insights/${report.slug}`), 450);
+    setPublishError(undefined);
+
+    try {
+      const response = await fetch("/api/reports", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({
+          ...report,
+          title: title.trim() || report.title,
+          slug: publishedSlug,
+          intro: introduction.trim() || report.intro,
+          updatedAt: new Date().toISOString().slice(0, 10),
+        } satisfies PublicReport),
+      });
+
+      if (!response.ok) {
+        throw new Error("The report could not be saved.");
+      }
+
+      const result = (await response.json()) as { slug: string };
+      router.push(`/insights/${encodeURIComponent(result.slug)}`);
+    } catch (error) {
+      setIsPublishing(false);
+      setPublishError(error instanceof Error ? error.message : "The report could not be saved.");
+    }
   }
 
   return (
@@ -39,11 +72,11 @@ export function PublishEditor({ report, source, notice }: PublishEditorProps) {
         <div className="shell flex min-h-[72px] flex-wrap items-center justify-between gap-3 py-3">
           <div>
             <p className="text-xs font-extrabold uppercase tracking-[0.12em] text-[#70847c]">Report builder</p>
-            <p className="mt-1 text-sm font-bold text-[var(--ink)]">Public report preview · {source === "crustdata" ? "live Crustdata source" : "mock source"}</p>
+            <p className="mt-1 text-sm font-bold text-[var(--ink)]">Public report preview · {sourceLabels[source]}</p>
           </div>
           <div className="flex items-center gap-2.5">
             <button onClick={() => router.back()} className="button-secondary min-h-10 px-3.5 text-[13px]"><ArrowLeft size={14} /> Cancel</button>
-            <button onClick={publish} disabled={isPublishing} className="button-primary min-h-10 px-4 text-[13px] disabled:opacity-70">
+            <button onClick={() => void publish()} disabled={isPublishing} className="button-primary min-h-10 px-4 text-[13px] disabled:opacity-70">
               {isPublishing ? <LoaderCircle size={15} className="animate-spin" /> : <Globe2 size={15} />}
               {isPublishing ? "Publishing…" : "Publish report"}
             </button>
@@ -56,6 +89,7 @@ export function PublishEditor({ report, source, notice }: PublishEditorProps) {
           <div className="flex items-center gap-2 text-sm font-extrabold"><Sparkles size={16} className="text-[var(--mint-dark)]" /> Report details</div>
           <p className="mt-2 text-xs leading-5 text-[#71847d]">Edit the public framing. The private research stays unchanged.</p>
           {notice && <p className="mt-4 rounded-xl border border-[#ead8b9] bg-[#fff8eb] p-3 text-xs leading-5 text-[#765b31]">{notice}</p>}
+          {publishError && <p role="alert" className="mt-4 rounded-xl border border-[#edc9c9] bg-[#fff3f3] p-3 text-xs leading-5 text-[#8b3434]">{publishError} Please try again.</p>}
 
           <div className="mt-6 space-y-5">
             <div>
@@ -124,13 +158,13 @@ export function PublishEditor({ report, source, notice }: PublishEditorProps) {
                       </div>
                     </div>
                     <div className="ml-0 mt-4 flex flex-wrap gap-1.5 sm:ml-[70px]">
-                      {company.signals.slice(0, 2).map((signal) => <span key={signal.label} className="signal-pill">{signal.label}</span>)}
+                      {company.signals.map((signal) => <span key={signal.label} className="signal-pill">{signal.label}</span>)}
                     </div>
                     <p className="ml-0 mt-3 text-[13px] leading-5 text-[#536960] sm:ml-[70px]">{company.notability}</p>
                   </article>
                 ))}
               </div>
-              <p className="mt-5 text-center text-xs font-semibold text-[#7a8d85]">+ {report.companies.length - 5} more companies in the published report</p>
+              {report.companies.length > 5 && <p className="mt-5 text-center text-xs font-semibold text-[#7a8d85]">+ {report.companies.length - 5} more companies in the published report</p>}
             </div>
           </div>
         </section>

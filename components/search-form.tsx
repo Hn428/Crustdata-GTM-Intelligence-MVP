@@ -6,7 +6,7 @@ import { ArrowRight, Search, Sparkles } from "lucide-react";
 import { exampleQueries } from "@/lib/intelligence/mock-provider";
 
 const defaultQuery =
-  "Find fast-growing AI recruiting startups in the US that recently raised funding and are hiring GTM leaders.";
+  "Find US AI infrastructure startups with 20–500 employees that appear to be scaling enterprise sales.";
 
 export function SearchForm() {
   const router = useRouter();
@@ -40,7 +40,7 @@ export function SearchForm() {
         />
         <div className="flex flex-col gap-3 px-1 pb-1 sm:flex-row sm:items-center sm:justify-between">
           <span className="hidden items-center gap-2 px-4 text-xs text-[#789087] sm:flex">
-            <Search size={14} /> Mapped to a structured Phase 2 search
+            <Search size={14} /> The research agent chooses relevant live data tools
           </span>
           <button type="submit" disabled={isRunning} className="button-primary min-w-44 disabled:cursor-wait disabled:opacity-70">
             {isRunning ? "Building research…" : "Run research"}
