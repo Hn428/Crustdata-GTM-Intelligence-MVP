@@ -3,16 +3,16 @@ import type { CompanyResult, SearchRecord } from "@/lib/intelligence/types";
 
 export const exampleQueries = [
   {
-    label: "Fintech · Europe",
-    query: "Find European fintech companies expanding into the US and building enterprise sales teams.",
+    label: "Fintech · First sales team",
+    query: "Find Series A fintech companies hiring their first sales team.",
   },
   {
-    label: "Devtools · Series A–C",
-    query: "Which developer tooling startups raised Series A–C and added senior marketing leaders this year?",
+    label: "Devtools · Enterprise",
+    query: "Find developer-tool startups expanding enterprise sales.",
   },
   {
-    label: "Climate tech · Hiring",
-    query: "Show fast-growing climate software companies hiring their first revenue operations leader.",
+    label: "Cybersecurity · Leadership",
+    query: "Find cybersecurity startups where a new sales leader may have joined.",
   },
 ];
 

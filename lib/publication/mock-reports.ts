@@ -1,5 +1,6 @@
 import type { PublicCompanyResult, PublicReport } from "@/lib/intelligence/types";
 import { seedSearch } from "@/lib/intelligence/mock-provider";
+import { getStoredPublicReport } from "@/lib/publication/report-store";
 import { toPublicReport } from "@/lib/publication/transform";
 
 const methodology =
@@ -20,7 +21,37 @@ export const primaryReportDetails = {
 const primaryReport = toPublicReport(seedSearch, primaryReportDetails);
 
 export function createPublicReportFromSearch(search: Parameters<typeof toPublicReport>[0]) {
-  return toPublicReport(search, primaryReportDetails);
+  const date = new Date().toISOString().slice(0, 10);
+  const interpretedQuery = search.interpretedQuery ?? search.query;
+  const subject = interpretedQuery
+    .replace(/^(find|show|identify|which)\s+/i, "")
+    .replace(/[.?!]+$/, "")
+    .trim();
+  const conciseSubject = subject.length > 96 ? `${subject.slice(0, 93).trimEnd()}…` : subject;
+  const slugSubject = subject
+    .toLowerCase()
+    .replace(/[^a-z0-9]+/g, "-")
+    .replace(/^-+|-+$/g, "")
+    .slice(0, 72);
+  const liveMethodology =
+    search.source === "agent"
+      ? "OpenAI interpreted the research goal and selected read-only Crustdata MCP tools. Company facts and signals were retained only when they matched returned Crustdata evidence. Rankings use deterministic application scoring; private buyer, outreach, and score fields are excluded from this report."
+      : search.source === "crustdata"
+        ? "Companies were selected from direct Crustdata company and job searches, then ranked with deterministic application scoring. Private buyer, outreach, and score fields are excluded from this report."
+        : methodology;
+
+  return toPublicReport(search, {
+    id: `report-${slugSubject || "gtm-research"}`,
+    title: conciseSubject ? `GTM market research: ${conciseSubject}` : "GTM market research",
+    slug: `gtm-research-${slugSubject || "companies"}`,
+    intro:
+      search.researchSummary ??
+      `A focused review of ${search.results.length} companies returned for the research goal, using the factual signals available in the source data.`,
+    summary: `A public-safe market view of ${search.results.length} researched companies and their verified signals.`,
+    createdAt: date,
+    updatedAt: date,
+    methodology: liveMethodology,
+  });
 }
 
 const fintechCompanies: PublicCompanyResult[] = [
@@ -161,6 +192,6 @@ export const publicReports: PublicReport[] = [
   },
 ];
 
-export function getPublicReport(slug: string): PublicReport {
-  return publicReports.find((report) => report.slug === slug) ?? primaryReport;
+export function getPublicReport(slug: string): PublicReport | undefined {
+  return getStoredPublicReport(slug) ?? publicReports.find((report) => report.slug === slug);
 }

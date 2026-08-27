@@ -5,7 +5,7 @@ A lightweight GTM intelligence MVP that turns one research query into:
 - a private, ranked outbound research workspace; and
 - a sanitized public market-intelligence report.
 
-Phase 2 supports real company and indexed-job data from Crustdata while preserving a complete fictional mock mode. OpenAI/LLM orchestration is intentionally not included yet.
+Phase 3 adds a bounded OpenAI Responses API orchestration layer over Crustdata MCP while preserving the complete Phase 1 mock provider and Phase 2 direct REST provider as demo-safe fallbacks.
 
 ## Run in GitHub Codespaces
 
@@ -17,25 +17,40 @@ cp .env.example .env.local
 npm run dev
 ```
 
-Open the forwarded port for `3000`. Codespaces usually detects the port automatically and offers an **Open in Browser** action.
+Node.js 22 or newer is required by the current OpenAI SDK. Open the forwarded port for `3000`; Codespaces usually detects it automatically and offers an **Open in Browser** action.
 
 ### Provider setup
 
 Mock mode works without credentials and consumes no credits:
 
 ```env
-INTELLIGENCE_PROVIDER=mock
+INTELLIGENCE_MODE=mock
 CRUSTDATA_API_KEY=
+OPENAI_API_KEY=
 ```
 
-For real data, edit `.env.local`:
+For deterministic Phase 2 Crustdata REST data:
 
 ```env
-INTELLIGENCE_PROVIDER=crustdata
+INTELLIGENCE_MODE=direct
 CRUSTDATA_API_KEY=your_crustdata_api_key
 ```
 
-Restart `npm run dev` after changing environment values. `.env.local` is Git-ignored; never commit the real key.
+For Phase 3 natural-language orchestration:
+
+```env
+INTELLIGENCE_MODE=agent
+CRUSTDATA_API_KEY=your_crustdata_api_key
+OPENAI_API_KEY=your_openai_api_key
+OPENAI_MODEL=gpt-5.4-mini
+CRUSTDATA_MCP_URL=https://mcp.crustdata.com/mcp
+AGENT_MAX_COMPANIES=5
+AGENT_MAX_MCP_CALLS=6
+```
+
+`AGENT_MAX_COMPANIES` is clamped to 1–10 and MCP calls are capped at 10. The default keeps development searches to five final companies and six MCP calls. `INTELLIGENCE_PROVIDER=crustdata` remains supported as a legacy alias for `INTELLIGENCE_MODE=direct`.
+
+Restart `npm run dev` after changing environment values. `.env.local` is Git-ignored; never commit either real key. OpenAI and Crustdata requests run only from server modules.
 
 For canonical metadata outside local development, you may optionally add:
 
@@ -81,15 +96,36 @@ lib/intelligence/normalize.ts
                              External-data normalization and hiring rules
 lib/intelligence/scoring.ts  Transparent deterministic fit score
 lib/intelligence/selected-provider.ts
-                             Environment selection and mock fallback
-lib/orchestration/provider.ts
-                             Future LLM planning boundary (interface only)
+                             Mode selection and agent → direct → mock fallback
+lib/agent/openai-client.ts   Server-only OpenAI SDK setup and timeout
+lib/agent/schemas.ts        Strict Zod structured-output schemas
+lib/agent/prompts.ts        Concise bounded GTM research instructions
+lib/agent/research-agent.ts Responses API + remote Crustdata MCP provider/cache
+lib/agent/normalize-agent-result.ts
+                             MCP evidence validation and CompanyResult mapping
 lib/publication/transform.ts Deterministic private-to-public sanitizer
+lib/publication/report-store.ts
+                             Validated, process-local published-report store
 lib/publication/mock-reports.ts
                              Mock public report collection
+app/api/reports/route.ts     Sanitized report publication endpoint
 ```
 
-The public report type deliberately omits fit score, buyer title, and outreach angle. The sanitizer copies only explicitly public fields, preventing private GTM context from leaking into public pages by accidental object reuse.
+The public report type deliberately omits fit score, buyer name/title, and outreach angle. The sanitizer copies only explicitly public fields, preventing private GTM context from leaking into public pages by accidental object reuse.
+
+## Agent behavior
+
+Agent mode sends the natural-language goal to the OpenAI Responses API with Crustdata configured as a remote MCP tool. One model chooses useful company/job/person/signal research steps; no agent framework or autonomous loop is used.
+
+The returned result is parsed with a strict Zod-backed Structured Output schema. Application code then cross-checks each company, factual signal, and named buyer against the actual MCP tool-call output. Unsupported claims are dropped, named buyers require both name and title evidence, and fit scores are always recomputed by the existing deterministic scoring function. `whyNow` and the outreach angle are treated as interpretations and cannot introduce unsupported numeric claims.
+
+Agent responses are cached by normalized query, model, MCP endpoint, and limits. The selected provider's final snapshot—including a direct or mock fallback—is also cached in memory for 15 minutes. Opening a matching publish preview therefore reuses the exact private-search snapshot in the same server process instead of triggering another MCP request. Development logs contain timings and call counts only—not credentials or full tool responses.
+
+Failure behavior is intentionally layered:
+
+- agent configuration, OpenAI auth/timeout, malformed output, MCP failure, refusal/no useful tool call, or zero evidence-validated companies → direct Crustdata;
+- direct Crustdata auth/rate-limit/network/response failure → mock data;
+- partial MCP failures may still return supported partial agent results with a visible notice.
 
 ## Crustdata behavior
 
@@ -113,4 +149,11 @@ Fit scoring is deterministic and capped at 100:
 
 The provider caches each structured search promise in memory for 15 minutes. Job enrichment is best-effort: a job failure still returns company results. Company-search authentication, access, rate-limit, network, malformed-response, and validation failures degrade to mock results with a visible notice.
 
-Buyer lookup remains persona-only in Phase 2. This avoids five additional paid person-search calls while the core company/job flow is validated; no personal emails or contact fields are requested.
+Direct mode remains persona-only. Agent mode can display a named buyer only when Crustdata output verifies both the person and title; otherwise it displays a persona. The agent prompt forbids requesting emails, phone numbers, or other contact details.
+
+## Known MVP limitations
+
+- Search and agent caches are process-local; restarting the dev server discards them.
+- Published reports are schema-validated and retained in process memory for 24 hours (up to 50 reports). They are lost on server restart and are not yet shared across multiple server instances; durable production storage remains future work.
+- The prompt-specified MCP URL is the default. `CRUSTDATA_MCP_URL` can be changed to Crustdata's current documented `https://install.crustdata.com/mcp`; only those two HTTPS hosts are accepted to prevent credential forwarding elsewhere.
+- Live agent verification requires both paid-service keys and consumes OpenAI tokens plus Crustdata credits.

@@ -1,5 +1,6 @@
 import type { Metadata } from "next";
 import Link from "next/link";
+import { notFound } from "next/navigation";
 import {
   ArrowRight,
   ArrowUpRight,
@@ -23,9 +24,12 @@ type InsightPageProps = {
   params: Promise<{ slug: string }>;
 };
 
+export const dynamic = "force-dynamic";
+
 export async function generateMetadata({ params }: InsightPageProps): Promise<Metadata> {
   const { slug } = await params;
   const report = getPublicReport(slug);
+  if (!report) notFound();
 
   return {
     title: report.title,
@@ -49,6 +53,7 @@ export function generateStaticParams() {
 export default async function InsightPage({ params }: InsightPageProps) {
   const { slug } = await params;
   const report = getPublicReport(slug);
+  if (!report) notFound();
   const updatedDate = new Intl.DateTimeFormat("en-US", {
     month: "long",
     day: "numeric",
@@ -57,6 +62,7 @@ export default async function InsightPage({ params }: InsightPageProps) {
   }).format(new Date(`${report.updatedAt}T00:00:00.000Z`));
   const signalCount = report.companies.reduce((total, company) => total + company.signals.length, 0);
   const multiSignalCount = report.companies.filter((company) => company.signals.length >= 3).length;
+  const locationCount = new Set(report.companies.map((company) => company.location)).size;
   const structuredData = {
     "@context": "https://schema.org",
     "@type": "Article",
@@ -96,7 +102,7 @@ export default async function InsightPage({ params }: InsightPageProps) {
               <div className="mt-9 flex flex-wrap gap-x-7 gap-y-3 text-sm font-semibold text-[#a9bdb5]">
                 <span className="flex items-center gap-2"><CalendarDays size={16} className="text-[#63d998]" /> Last updated {updatedDate}</span>
                 <span className="flex items-center gap-2"><Building2 size={16} className="text-[#63d998]" /> {report.companies.length} companies analyzed</span>
-                <span className="flex items-center gap-2"><MapPin size={16} className="text-[#63d998]" /> United States</span>
+                <span className="flex items-center gap-2"><MapPin size={16} className="text-[#63d998]" /> {locationCount} {locationCount === 1 ? "location" : "locations"} represented</span>
               </div>
             </div>
           </div>
@@ -175,7 +181,7 @@ export default async function InsightPage({ params }: InsightPageProps) {
           </div>
           <div className="rounded-[22px] border border-[#e9dfce] bg-[#fbf7ef] p-6">
             <p className="text-[11px] font-extrabold uppercase tracking-[0.12em] text-[#926431]">A note on the data</p>
-            <p className="mt-3 text-xs leading-5 text-[#765f43]">This Phase 1 report uses illustrative mock data to demonstrate the product experience. Live company and people signals will be connected in a later phase.</p>
+            <p className="mt-3 text-xs leading-5 text-[#765f43]">This report includes only evidence-backed company signals. Private fit scores, buyer details, and outreach recommendations are excluded from the public view.</p>
           </div>
         </aside>
       </div>

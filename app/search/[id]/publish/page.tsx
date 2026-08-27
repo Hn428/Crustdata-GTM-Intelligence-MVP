@@ -9,8 +9,15 @@ export const metadata: Metadata = {
   robots: { index: false, follow: false },
 };
 
-export default async function PublishPage({ params }: { params: Promise<{ id: string }> }) {
-  const { id } = await params;
-  const search = await runIntelligenceSearch(getSearchCriteria(id));
+export default async function PublishPage({
+  params,
+  searchParams,
+}: {
+  params: Promise<{ id: string }>;
+  searchParams: Promise<{ q?: string | string[] }>;
+}) {
+  const [{ id }, queryParams] = await Promise.all([params, searchParams]);
+  const query = typeof queryParams.q === "string" ? queryParams.q.slice(0, 500) : undefined;
+  const search = await runIntelligenceSearch(getSearchCriteria(id, query));
   return <PublishEditor report={createPublicReportFromSearch(search)} source={search.source} notice={search.notice} />;
 }
